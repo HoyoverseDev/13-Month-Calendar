@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>13-Month Calendar</title>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#eef2f5;--panel:#fff;--ink:#0f3d4c;--mute:#5d7480;--line:#d3dde3;--acc:#e8a33d;--accink:#3a2300;--sel:#0f3d4c;--selink:#fff;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0c1a20;--panel:#13262e;--ink:#e3eef2;--mute:#8fa8b3;--line:#27404a;--sel:#e8a33d;--selink:#3a2300}}
+:root[data-theme="dark"]{--bg:#0c1a20;--panel:#13262e;--ink:#e3eef2;--mute:#8fa8b3;--line:#27404a;--sel:#e8a33d;--selink:#3a2300}
+*{box-sizing:border-box}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Bricolage Grotesque",system-ui,sans-serif;line-height:1.4}
+main{max-width:1100px;margin:0 auto;padding:20px 16px 48px}
+h1{font-size:clamp(28px,5vw,44px);font-weight:800;margin:0 0 4px;letter-spacing:-.02em}
+p.sub{margin:0 0 20px;color:var(--mute)}
+.conv{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;margin-bottom:24px}
+.box{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px}
+.box h2{font-size:16px;margin:0 0 10px}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+input,select{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:8px;min-width:0}
+input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+.out{margin-top:12px;font-size:20px;font-weight:600;min-height:28px}
+.bar{display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap}
+.bar button{font:inherit;background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:6px 14px;cursor:pointer}
+.bar strong{font-size:22px;min-width:64px;text-align:center}
+.bar .today{margin-left:auto;background:var(--acc);color:var(--accink);border-color:var(--acc)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px}
+.m{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px}
+.m h3{margin:0 0 8px;font-size:17px}
+.m h3 small{color:var(--mute);font-weight:400;font-size:12px;margin-left:6px}
+.days{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;text-align:center}
+.wd{font-size:11px;color:var(--mute);padding-bottom:3px}
+.d{font:inherit;font-size:13px;background:none;color:var(--ink);border:0;border-radius:5px;padding:5px 0;cursor:pointer}
+.d:hover{background:var(--bg)}
+.d.today{box-shadow:inset 0 0 0 2px var(--acc)}
+.d.sel{background:var(--sel);color:var(--selink);font-weight:600}
+.sp{grid-column:1/-1;font:inherit;font-size:14px;text-align:left;background:var(--bg);color:var(--ink);border:1px dashed var(--mute);border-radius:8px;padding:10px 12px;cursor:pointer}
+.sp.sel{background:var(--sel);color:var(--selink);border-style:solid}
+.note{color:var(--mute);font-size:13px;margin-top:20px;max-width:70ch}
+</style>
+</head>
+<body>
+<main>
+<h1>13-Month Calendar</h1>
+<p class="sub">Thirteen months of 28 days, every month starting on a Monday. Convert either way.</p>
+
+<section class="conv">
+  <div class="box">
+    <h2>13-month → Gregorian</h2>
+    <div class="row">
+      <input id="fy" type="number" style="width:90px" aria-label="Year">
+      <select id="fm" aria-label="Month"></select>
+      <select id="fd" aria-label="Day"></select>
+    </div>
+    <div class="out" id="fout"></div>
+  </div>
+  <div class="box">
+    <h2>Gregorian → 13-month</h2>
+    <input id="gd" type="date" aria-label="Gregorian date">
+    <div class="out" id="gout"></div>
+  </div>
+</section>
+
+<div class="bar">
+  <button id="prev" aria-label="Previous year">‹</button>
+  <strong id="yr"></strong>
+  <button id="next" aria-label="Next year">›</button>
+  <button id="today" class="today">Today</button>
+</div>
+<div class="grid" id="grid"></div>
+<p class="note">Layout follows your 13_Sol document: weeks run Monday to Sunday and every month has four weeks. A 13th month, Sol, sits between June and July. Year Day follows December 28 and, in leap years, Leap Day follows June 28; both belong to no weekday or month.</p>
+</main>
+<script>
+const MN=["January","February","March","April","May","June","Sol","July","August","September","October","November","December"];
+const $=id=>document.getElementById(id);
+const leap=y=>y%4===0&&(y%100!==0||y%400===0);
+const UTC=(y,m,d)=>Date.UTC(y,m,d);
+const fmtG=(y,doy)=>new Date(UTC(y,0,doy)).toLocaleDateString(undefined,{weekday:"long",year:"numeric",month:"long",day:"numeric",timeZone:"UTC"});
+// fixed -> day of year. m:1..13, or "L" leap day, "Y" year day
+function toDoy(y,m,d){
+  if(m==="L")return 169;
+  if(m==="Y")return leap(y)?366:365;
+  let n=(m-1)*28+d; if(leap(y)&&m>=7)n++; return n;
+}
+// day of year -> {m,d} or {s:"L"|"Y"}
+function fromDoy(y,n){
+  const L=leap(y);
+  if(L&&n===169)return{s:"L"};
+  if(n===(L?366:365))return{s:"Y"};
+  if(L&&n>169)n--;
+  return{m:Math.floor((n-1)/28)+1,d:(n-1)%28+1};
+}
+const label=(r)=>r.s==="L"?"Leap Day":r.s==="Y"?"Year Day":MN[r.m-1]+" "+r.d;
+const gDoy=(y,m,d)=>(UTC(y,m,d)-UTC(y,0,1))/864e5+1;
+
+const now=new Date();
+const T={y:now.getFullYear(),doy:gDoy(now.getFullYear(),now.getMonth(),now.getDate())};
+let Y=T.y, sel={y:T.y,doy:T.doy};
+
+// init selects
+$("fm").innerHTML=MN.map((n,i)=>`<option value="${i+1}">${n}</option>`).join("")+'<option value="L">Leap Day</option><option value="Y">Year Day</option>';
+$("fd").innerHTML=Array.from({length:28},(_,i)=>`<option>${i+1}</option>`).join("");
+
+function setSel(y,doy){sel={y,doy};Y=y;render();sync();}
+function sync(){
+  const r=fromDoy(sel.y,sel.doy);
+  $("fy").value=sel.y;
+  $("fm").value=r.s||r.m; $("fd").value=r.d||1; $("fd").disabled=!!r.s;
+  const dt=new Date(UTC(sel.y,0,sel.doy));
+  $("gd").value=dt.toISOString().slice(0,10);
+  outs();
+}
+function outs(){
+  const y=+$("fy").value, m=$("fm").value, mm=isNaN(m)?m:+m;
+  $("fd").disabled=isNaN(m);
+  if(!y){$("fout").textContent="Enter a year";}
+  else if(mm==="L"&&!leap(y)){$("fout").textContent=y+" is not a leap year";}
+  else $("fout").textContent=fmtG(y,toDoy(y,mm,+$("fd").value));
+  const v=$("gd").value;
+  if(!v){$("gout").textContent="Pick a date";return;}
+  const [gy,gm,gd]=v.split("-").map(Number);
+  const r=fromDoy(gy,gDoy(gy,gm-1,gd));
+  $("gout").textContent=label(r)+", "+gy;
+}
+function render(){
+  $("yr").textContent=Y;
+  let h="";
+  const dayBtn=(doy,t)=>`<button class="d${Y===T.y&&doy===T.doy?" today":""}${Y===sel.y&&doy===sel.doy?" sel":""}" data-doy="${doy}">${t}</button>`;
+  for(let m=1;m<=13;m++){
+    h+=`<div class="m"><h3>${MN[m-1]}<small>${m}/13</small></h3><div class="days">`+
+      ["M","T","W","T","F","S","S"].map(x=>`<div class="wd">${x}</div>`).join("");
+    for(let d=1;d<=28;d++)h+=dayBtn(toDoy(Y,m,d),d);
+    h+="</div>";
+    if(m===6&&leap(Y))h+=`<button class="sp${Y===sel.y&&sel.doy===169?" sel":""}" data-doy="169" style="margin-top:8px;width:100%">Leap Day</button>`;
+    if(m===13)h+=`<button class="sp${Y===sel.y&&sel.doy===(leap(Y)?366:365)?" sel":""}" data-doy="${leap(Y)?366:365}" style="margin-top:8px;width:100%">Year Day</button>`;
+    h+="</div>";
+  }
+  $("grid").innerHTML=h;
+}
+$("grid").onclick=e=>{const b=e.target.closest("[data-doy]");if(b)setSel(Y,+b.dataset.doy);};
+$("prev").onclick=()=>{Y--;render();};
+$("next").onclick=()=>{Y++;render();};
+$("today").onclick=()=>setSel(T.y,T.doy);
+["fy","fm","fd"].forEach(id=>$(id).addEventListener("input",()=>{
+  const y=+$("fy").value,m=$("fm").value,mm=isNaN(m)?m:+m;
+  outs();
+  if(y>0&&!(mm==="L"&&!leap(y))){sel={y,doy:toDoy(y,mm,+$("fd").value)};Y=y;render();$("gd").value=new Date(UTC(y,0,sel.doy)).toISOString().slice(0,10);outs();}
+}));
+$("gd").addEventListener("input",()=>{
+  const v=$("gd").value;if(!v)return;
+  const [y,m,d]=v.split("-").map(Number);
+  setSel(y,gDoy(y,m-1,d));
+});
+render();sync();
+</script>
+</body>
+</html>
