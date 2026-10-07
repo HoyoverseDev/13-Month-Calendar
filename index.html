@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>13-Month Calendar</title>
+<title>13-Month Calendar (Yearal)</title>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;600;800&display=swap" rel="stylesheet">
 <style>
 :root{--bg:#eef2f5;--panel:#fff;--ink:#0f3d4c;--mute:#5d7480;--line:#d3dde3;--acc:#e8a33d;--accink:#3a2300;--sel:#0f3d4c;--selink:#fff;
@@ -39,12 +39,26 @@ input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid 
 .d.sel{background:var(--sel);color:var(--selink);font-weight:600}
 .sp{grid-column:1/-1;font:inherit;font-size:14px;text-align:left;background:var(--bg);color:var(--ink);border:1px dashed var(--mute);border-radius:8px;padding:10px 12px;cursor:pointer}
 .sp.sel{background:var(--sel);color:var(--selink);border-style:solid}
+.wd13{display:block;font-size:14px;font-weight:400;color:var(--mute);margin-top:4px}
+.yearbox{position:relative;display:inline-flex;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:8px}
+.bar .yearbox button{border:0;background:none;border-radius:0;padding:6px 12px;font-size:18px}
+.yearbox input{border:0;background:transparent;width:72px;text-align:center;font-size:20px;font-weight:800;padding:6px 0}
+.ylist{display:none;position:absolute;top:100%;left:0;right:0;margin-top:4px;max-height:240px;overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:8px;z-index:5}
+.ylist.open{display:block}
+.bar .ylist button{display:block;width:100%;text-align:center;font-size:15px;padding:6px 0;color:var(--ink)}
+.bar .ylist button:hover{background:var(--bg)}
+.bar .ylist button.cur{background:var(--sel);color:var(--selink)}
+.pattern{margin-top:24px}
+.pgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:14px;text-align:center}
+.pgrid b{display:block;margin-bottom:4px}
+.pgrid div{color:var(--mute);font-size:14px}
+.pnote{text-align:center;color:var(--mute);font-size:14px;margin:16px 0 0}
 .note{color:var(--mute);font-size:13px;margin-top:20px;max-width:70ch}
 </style>
 </head>
 <body>
 <main>
-<h1>13-Month Calendar</h1>
+<h1>13-Month Calendar (Yearal)</h1>
 <p class="sub">Thirteen months of 28 days, every month starting on a Monday. Convert either way.</p>
 
 <section class="conv">
@@ -59,18 +73,50 @@ input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid 
   </div>
   <div class="box">
     <h2>Gregorian → 13-month</h2>
-    <input id="gd" type="date" aria-label="Gregorian date">
+    <div class="row">
+      <input id="gy" type="number" style="width:90px" aria-label="Year">
+      <select id="gm" aria-label="Month"></select>
+      <select id="gdy" aria-label="Day"></select>
+    </div>
     <div class="out" id="gout"></div>
+  </div>
+  <div class="box">
+    <h2>Birthday finder</h2>
+    <div class="row">
+      <input id="by" type="number" style="width:90px" placeholder="Year" aria-label="Birth year">
+      <select id="bm" aria-label="Birth month"></select>
+      <select id="bdd" aria-label="Birth day"></select>
+    </div>
+    <div class="out" id="bout"></div>
   </div>
 </section>
 
 <div class="bar">
-  <button id="prev" aria-label="Previous year">‹</button>
-  <strong id="yr"></strong>
-  <button id="next" aria-label="Next year">›</button>
+  <div class="yearbox">
+    <button id="prev" aria-label="Previous year">‹</button>
+    <input id="jump" type="text" inputmode="numeric" maxlength="4" autocomplete="off" aria-label="Year">
+    <button id="caret" aria-label="Choose a year from the list">▾</button>
+    <button id="next" aria-label="Next year">›</button>
+    <div class="ylist" id="ylist"></div>
+  </div>
+  <button id="view">Switch to Gregorian</button>
+  <button id="theme">Light / Dark</button>
   <button id="today" class="today">Today</button>
 </div>
 <div class="grid" id="grid"></div>
+<section class="box pattern">
+  <h2>Perpetual Day Pattern</h2>
+  <div class="pgrid">
+    <div><b>Mon</b>1, 8, 15, 22</div>
+    <div><b>Tue</b>2, 9, 16, 23</div>
+    <div><b>Wed</b>3, 10, 17, 24</div>
+    <div><b>Thu</b>4, 11, 18, 25</div>
+    <div><b>Fri</b>5, 12, 19, 26</div>
+    <div><b>Sat</b>6, 13, 20, 27</div>
+    <div><b>Sun</b>7, 14, 21, 28</div>
+  </div>
+  <p class="pnote">In the 13-month calendar, every date falls on the same weekday all year long!</p>
+</section>
 <p class="note">Layout follows your 13_Sol document: weeks run Monday to Sunday and every month has four weeks. A 13th month, Sol, sits between June and July. Year Day follows December 28 and, in leap years, Leap Day follows June 28; both belong to no weekday or month.</p>
 </main>
 <script>
@@ -110,23 +156,38 @@ function sync(){
   $("fy").value=sel.y;
   $("fm").value=r.s||r.m; $("fd").value=r.d||1; $("fd").disabled=!!r.s;
   const dt=new Date(UTC(sel.y,0,sel.doy));
-  $("gd").value=dt.toISOString().slice(0,10);
+  setGctl(sel.y,sel.doy);
   outs();
 }
+const WD=["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
+const wdOf=r=>r.s?"none, it is an extra day outside the week":WD[(r.d-1)%7];
 function outs(){
   const y=+$("fy").value, m=$("fm").value, mm=isNaN(m)?m:+m;
   $("fd").disabled=isNaN(m);
-  if(!y){$("fout").textContent="Enter a year";}
-  else if(mm==="L"&&!leap(y)){$("fout").textContent=y+" is not a leap year";}
-  else $("fout").textContent=fmtG(y,toDoy(y,mm,+$("fd").value));
-  const v=$("gd").value;
-  if(!v){$("gout").textContent="Pick a date";return;}
-  const [gy,gm,gd]=v.split("-").map(Number);
-  const r=fromDoy(gy,gDoy(gy,gm-1,gd));
-  $("gout").textContent=label(r)+", "+gy;
+  if(!y)$("fout").textContent="Enter a year";
+  else if(mm==="L"&&!leap(y))$("fout").textContent=y+" is not a leap year";
+  else{const r=isNaN(m)?{s:m}:{m:mm,d:+$("fd").value};
+    $("fout").innerHTML=fmtG(y,toDoy(y,mm,r.d))+`<span class="wd13">13-month weekday: ${wdOf(r)}</span>`;}
+  const gy=+$("gy").value;
+  if(!gy)$("gout").textContent="Enter a year";
+  else{const r=fromDoy(gy,gDoy(gy,+$("gm").value,+$("gdy").value));
+    $("gout").innerHTML=label(r)+", "+gy+`<span class="wd13">13-month weekday: ${wdOf(r)}</span>`;}
+  bday();
 }
-function render(){
-  $("yr").textContent=Y;
+function bday(){
+  const by=+$("by").value;
+  if(!(by>=1000&&by<=9999)){$("bout").textContent="Enter your birth year";return;}
+  const r=fromDoy(by,gDoy(by,+$("bm").value,+$("bdd").value));
+  let next="";
+  for(let y=T.y;y<=T.y+8;y++){
+    if(r.s==="L"&&!leap(y))continue;
+    const doy=toDoy(y,r.s||r.m,r.d);
+    if(y>T.y||doy>=T.doy){next=fmtG(y,doy);break;}
+  }
+  const w=r.s?"It falls on an extra day outside the week":"Always a "+wdOf(r);
+  $("bout").innerHTML=label(r)+`<span class="wd13">${w}</span><span class="wd13">Next one: ${next}</span>`;
+}
+function render13(){
   let h="";
   const dayBtn=(doy,t)=>`<button class="d${Y===T.y&&doy===T.doy?" today":""}${Y===sel.y&&doy===sel.doy?" sel":""}" data-doy="${doy}">${t}</button>`;
   for(let m=1;m<=13;m++){
@@ -140,6 +201,48 @@ function render(){
   }
   $("grid").innerHTML=h;
 }
+const GM=["January","February","March","April","May","June","July","August","September","October","November","December"];
+let G=false;
+function renderG(){
+  let h="";
+  for(let m=0;m<12;m++){
+    const first=(new Date(UTC(Y,m,1)).getUTCDay()+6)%7, n=new Date(UTC(Y,m+1,0)).getUTCDate();
+    h+=`<div class="m"><h3>${GM[m]}<small>${Y}</small></h3><div class="days">`+
+      ["M","T","W","T","F","S","S"].map(x=>`<div class="wd">${x}</div>`).join("")+"<span></span>".repeat(first);
+    for(let d=1;d<=n;d++){const doy=gDoy(Y,m,d);
+      h+=`<button class="d${Y===T.y&&doy===T.doy?" today":""}${Y===sel.y&&doy===sel.doy?" sel":""}" data-doy="${doy}">${d}</button>`;}
+    h+="</div></div>";
+  }
+  $("grid").innerHTML=h;
+}
+function render(){
+  G?renderG():render13();
+  $("jump").value=Y;
+  $("view").textContent=G?"Switch to 13-month":"Switch to Gregorian";
+}
+const YL=$("ylist");
+const closeYL=()=>YL.classList.remove("open");
+$("jump").addEventListener("input",()=>{
+  const v=$("jump").value.replace(/\D/g,"");$("jump").value=v;
+  if(v.length===4&&+v>=1000){Y=+v;render();closeYL();}
+});
+$("jump").addEventListener("blur",()=>{$("jump").value=Y;});
+$("jump").addEventListener("keydown",e=>{if(e.key==="Enter")$("jump").blur();if(e.key==="Escape")closeYL();});
+$("caret").onclick=()=>{
+  if(YL.classList.contains("open")){closeYL();return;}
+  if(!YL.children.length)YL.innerHTML=Array.from({length:301},(_,i)=>`<button data-y="${1900+i}">${1900+i}</button>`).join("");
+  YL.querySelectorAll(".cur").forEach(b=>b.classList.remove("cur"));
+  const c=YL.querySelector(`[data-y="${Y}"]`);
+  YL.classList.add("open");
+  if(c){c.classList.add("cur");YL.scrollTop=c.offsetTop-YL.clientHeight/2;}else YL.scrollTop=0;
+};
+YL.onclick=e=>{const b=e.target.closest("[data-y]");if(b){Y=+b.dataset.y;render();closeYL();}};
+document.addEventListener("click",e=>{if(!e.target.closest(".yearbox"))closeYL();});
+$("view").onclick=()=>{G=!G;render();};
+$("theme").onclick=()=>{
+  const r=document.documentElement,cur=r.dataset.theme||(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");
+  r.dataset.theme=cur==="dark"?"light":"dark";
+};
 $("grid").onclick=e=>{const b=e.target.closest("[data-doy]");if(b)setSel(Y,+b.dataset.doy);};
 $("prev").onclick=()=>{Y--;render();};
 $("next").onclick=()=>{Y++;render();};
@@ -147,13 +250,33 @@ $("today").onclick=()=>setSel(T.y,T.doy);
 ["fy","fm","fd"].forEach(id=>$(id).addEventListener("input",()=>{
   const y=+$("fy").value,m=$("fm").value,mm=isNaN(m)?m:+m;
   outs();
-  if(y>0&&!(mm==="L"&&!leap(y))){sel={y,doy:toDoy(y,mm,+$("fd").value)};Y=y;render();$("gd").value=new Date(UTC(y,0,sel.doy)).toISOString().slice(0,10);outs();}
+  if(y>0&&!(mm==="L"&&!leap(y))){sel={y,doy:toDoy(y,mm,+$("fd").value)};Y=y;render();setGctl(y,sel.doy);outs();}
 }));
-$("gd").addEventListener("input",()=>{
-  const v=$("gd").value;if(!v)return;
-  const [y,m,d]=v.split("-").map(Number);
-  setSel(y,gDoy(y,m-1,d));
-});
+$("gm").innerHTML=GM.map((n,i)=>`<option value="${i}">${n}</option>`).join("");
+function fillGD(y,m){
+  const n=new Date(UTC(y,m+1,0)).getUTCDate(),cur=+$("gdy").value||1;
+  $("gdy").innerHTML=Array.from({length:n},(_,i)=>`<option>${i+1}</option>`).join("");
+  $("gdy").value=Math.min(cur,n);
+}
+function setGctl(y,doy){
+  const dt=new Date(0);dt.setUTCFullYear(y,0,doy);
+  $("gy").value=y;$("gm").value=dt.getUTCMonth();fillGD(y,dt.getUTCMonth());$("gdy").value=dt.getUTCDate();
+}
+["gy","gm","gdy"].forEach(id=>$(id).addEventListener("input",()=>{
+  const y=+$("gy").value;
+  if(!(y>=1000&&y<=9999))return;
+  if(id!=="gdy")fillGD(y,+$("gm").value);
+  setSel(y,gDoy(y,+$("gm").value,+$("gdy").value));
+}));
+$("bm").innerHTML=GM.map((n,i)=>`<option value="${i}">${n}</option>`).join("");
+function fillBD(){
+  const y=+$("by").value>=1000?+$("by").value:2000,m=+$("bm").value;
+  const n=new Date(UTC(y,m+1,0)).getUTCDate(),cur=+$("bdd").value||1;
+  $("bdd").innerHTML=Array.from({length:n},(_,i)=>`<option>${i+1}</option>`).join("");
+  $("bdd").value=Math.min(cur,n);
+}
+fillBD();
+["by","bm","bdd"].forEach(id=>$(id).addEventListener("input",()=>{if(id!=="bdd")fillBD();bday();}));
 render();sync();
 </script>
 </body>
